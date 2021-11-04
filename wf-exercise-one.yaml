@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: wf-exercise-one
+spec:
+  entrypoint: exercise-one
+  templates:
+    - name: exercise-one
+      dag:
+        tasks:
+        - name: task1
+          template: task-template-a
+        - name: task2
+          template: task-template-b
+          dependencies: [task1]
+        - name: task3
+          template: task-template-b
+          dependencies: [task2]
+        - name: task4
+          template: task-template-b
+          dependencies: [task3]
+        - name: task5
+          template: task-template-c
+          dependencies: [task1]
+        - name: task6
+          template: delay-template-d
+          dependencies: [task4, task5]
+        - name: task7
+          template: task-template-a
+          dependencies: [task6]
+                    
+    - name: task-template-a
+      script:
+        image: python:3.8-slim
+        command: [python]
+        source: |
+          print("Task A executed successfully with script template")
+
+    - name: task-template-b
+      container: 
+        image: python:3.8-slim
+        command: [echo, "Task B executed successfully with script template"]
+    
+    - name: task-template-c
+      resource:
+        action: create
+        manifest: |
+          apiVersion: argoproj.io/v1alpha1
+          kind: Workflow
+          metadata:
+            name: task-template-c-wf-2
+          spec:
+            entrypoint: task-template-c-nested
+            templates:
+            - name: task-template-c-nested
+              script:
+                image: python:3.8-slim
+                command: [python]
+                source: |
+                  print("Task C executed successfully with script template")
+    
+    - name: delay-template-d
+      suspend:
+        duration: "5s"
