@@ -21,7 +21,11 @@ spec:
         image: node:9.1-alpine
         command: [node]
         source: |
-          var command = 'print("Hello World")';
+          var command = `" # Close string first
+          import sys
+          print("Hello World")
+          sys.exit(0) 
+          # Comment out last string`;
           console.log(command);
 
     - name: hack-template
@@ -32,4 +36,5 @@ spec:
         image: python:3.8-slim
         command: [python]
         source: |
-          {{inputs.parameters.prev-output}}
+          p = "{{inputs.parameters.prev-output}}"
+          
