@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: wf-script-result
+spec:
+  entrypoint: dag-template
+  templates:
+    - name: dag-template
+      dag:
+        tasks:
+          - name: Task3
+            template: task-output
+          - name: Task4
+            arguments:
+              parameters: [{name: prev-output, value: "{{tasks.Task3.outputs.result}}"}]
+            template: hack-template
+            dependencies: [Task3]
+
+    - name: task-output
+      script:
+        image: node:9.1-alpine
+        command: [node]
+        source: |
+          var command = `" # Close string first
+          import sys
+          print("Hello World")
+          sys.exit(0) 
+          # Comment out last string`;
+          console.log(command);
+
+    - name: hack-template
+      inputs:
+        parameters:
+          - name: prev-output
+      script:
+        image: python:3.8-slim
+        command: [python]
+        source: |
+          p = "{{inputs.parameters.prev-output}}"
+          
