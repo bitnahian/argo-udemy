@@ -1,0 +1,83 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: wf-depends
+spec:
+  entrypoint: dag-template
+  arguments:
+    parameters:
+    - name: messageA
+      value: A
+    - name: messageB
+      value: B
+  templates:
+  - name: dag-template
+    inputs:
+      parameters:
+      - name: messageA
+      - name: messageB
+    dag:
+      tasks:
+      - name: Task1
+        arguments:
+          parameters: [{name: text, value: "{{inputs.parameters.messageA}}"}]
+        template: task-decision
+      - name: TaskA
+        template: task-a
+        depends: Task1.Succeeded
+        when: "{{tasks.Task1.outputs.result}} == A"
+      - name: TaskB
+        template: task-b
+        depends: Task1.Succeeded
+        when: "{{tasks.Task1.outputs.result}} == B"
+      - name: TaskC
+        depends: TaskA.Succeeded
+        template: task-c
+      - name: TaskD
+        depends: TaskA.Skipped
+        template: task-d
+      - name: TaskD2
+        depends: TaskB.Succeeded
+        template: task-d
+      - name: TaskC2
+        depends: TaskB.Skipped
+        template: task-c
+
+  - name: task-decision
+    inputs:
+      parameters:
+      - name: text
+    script:
+      image: python:3.8-slim
+      command: [python]
+      source: |
+        p = "{{inputs.parameters.text}}"
+        print(p)
+
+  - name: task-a
+    script:
+      image: python:3.8-slim
+      command: [python]
+      source: |
+        print("Task A was executed.")
+
+  - name: task-b
+    script:
+      image: python:3.8-slim
+      command: [python]
+      source: |
+        print("Task B was executed.")
+
+  - name: task-c
+    script:
+      image: python:3.8-slim
+      command: [python]
+      source: |
+        print("Task C was executed.")
+
+  - name: task-d
+    script:
+      image: python:3.8-slim
+      command: [python]
+      source: |
+        print("Task D was executed.")
