@@ -1,7 +1,7 @@
 apiVersion: argoproj/v1alpha
 kind: Workflow
 metadata:
-  name: wf-exercise-two
+  generateName: wf-exercise-two-
 spec:
   entrypoint: dag-template
   volumes:
@@ -14,6 +14,9 @@ spec:
       value: money
   templates:
   - name: dag-template
+    inputs:
+      parameters:
+      - name: word-detect
     dag:
       tasks:
       - name: get-source
@@ -25,15 +28,17 @@ spec:
         depends: get-source.Succeeded
       - name: dag-loop
         template: dag-loop-template
+        depends: read-emails.Succeeded
         arguments:
           parameters:
-          - name: word-detect
-            value: {{inputs.parameters.word-detect}}
           - name: text
             value: "{{item.text}}"
           - name: sender
             value: "{{item.sender}}"
-        withParam: "{{tasks.read-emails.outputs.result}}"
+          - name: word-detect
+            value: "{{inputs.parameters.word-detect}}"
+        withParam: "{{tasks.read-emails.outputs.result}}" 
+
 
   - name: get-source-template
     script:
@@ -76,45 +81,44 @@ spec:
   - name: dag-loop-template
     inputs:
       parameters:
-      - name: word-detect
-      - name: text
       - name: sender
+      - name: text
+      - name: word-detect
     dag:
       tasks:
       - name: detect
         template: detect-template
         arguments:
           parameters:
-          - name: word-detect
-            value: "{{inputs.parameters.word-detect}}"
           - name: text
             value: "{{inputs.parameters.text}}"
+          - name: word-detect
+            value: "{{inputs.parameters.word-detect}}"
       - name: email-detected
         template: email-detected-template
-        depends: detect.Succeeded
-        when: "{{tasks.detect.outputs.result}} == DETECTED"
         arguments:
           parameters:
           - name: text
             value: "{{inputs.parameters.text}}"
           - name: sender
             value: "{{inputs.parameters.sender}}"
-
+        depends: detect.Succeeded
+        when: "{{tasks.detect.outputs.result}} == DETECTED"
   
   - name: detect-template
     inputs:
       parameters:
-      - name: word-detect
       - name: text
+      - name: word-detect
     script:
       image: python:3.8-slim
       command: [python]
       source: |
         if "{{inputs.parameters.word-detect}}" in "{{inputs.parameters.text}}":
-          print ("DETECTED")
+          print("DETECTED")
         else:
           print("OK")
-  
+
   - name: email-detected-template
     inputs:
       parameters:
@@ -141,4 +145,8 @@ spec:
       volumeMounts:
       - name: notification-email-vol
         mountPath: /secrets
-      
+    outputs:
+      artifacts:
+        - name: email-detected
+          path: /tmp/email_detected.txt
+          
